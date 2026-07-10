@@ -17,7 +17,7 @@ CLASS_NAMES = [
     "Convenience Store Counter": "편의점 계산대",
     "Bus Entrance": "버스 승차문",
     "Subway Gate": "지하철 개찰구"
-]
+] 
 
 @app.get("/")
 def root():
