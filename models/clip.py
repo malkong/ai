@@ -26,10 +26,9 @@ class CLIPModel:
         self.model.to(self.device)
         self.model.eval()
 
-    def predict(self, image_path, class_names):
-
-        image = self.preprocess(Image.open(image_path)).unsqueeze(0).to(self.device)
-
+    def predict(self, image, class_names):
+        image = self.preprocess(image).unsqueeze(0).to(self.device)        
+        
         text = self.tokenizer(class_names).to(self.device)
 
         with torch.no_grad():
@@ -46,4 +45,7 @@ class CLIPModel:
 
         idx = similarity.argmax().item()
 
-        return class_names[idx], similarity.squeeze().cpu().numpy()
+        return {
+            "scene": class_names[idx],
+            "score": float(similarity[0][idx].item())
+        }
