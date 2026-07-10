@@ -1,0 +1,13 @@
+MODEL_NAME = "ViT-B-32"
+
+PRETRAINED = "laion2b_s34b_b79k"
+
+NUM_CLASSES = 5
+
+IMAGE_SIZE = 224
+
+BATCH_SIZE = 32
+
+LR = 1e-5
+
+EPOCH = 10
