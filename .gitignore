@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.pyc
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment
+.env
+
+# Logs
+*.log
+
+# Model Weights
+weights/*.pt
+weights/*.pth
+weights/*.ckpt
+weights/*.bin
+
+# Dataset
+data/
+dataset/
+
+# Test Images
+sample/
+
+# Build
+build/
+dist/
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Temporary
+*.tmp
+*.temp
