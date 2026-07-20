@@ -2,7 +2,7 @@ MODEL_NAME = "ViT-B-32"
 
 PRETRAINED = "laion2b_s34b_b79k"
 
-NUM_CLASSES = 5
+NUM_CLASSES = 7
 
 IMAGE_SIZE = 224
 
