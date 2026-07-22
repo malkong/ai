@@ -38,6 +38,7 @@ weights/*.bin
 # Dataset
 data/
 dataset/
+baseline_results/
 
 # Test Images
 sample/
