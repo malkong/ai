@@ -1,105 +1,166 @@
 import os
+import shutil
+import numpy as np
+import matplotlib.pyplot as plt
 
-from PIL import Image
-from tqdm import tqdm
-
-from services.inference import model
-from services.inference import CLASS_NAMES
-
-from train.metrics import evaluate_metrics
-from train.visualize import (
-    save_confusion_matrix,
-    save_misclassified,
+import torch
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix
 )
 
-TEST_DIR = "data/test"
+from model import CLIPClassifier
+from dataset import get_dataloader
 
+# ===============================
+# 설정
+# ===============================
 
-def load_test_dataset():
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-    image_paths = []
+TEST_DIR = "dataset/test"
 
-    labels = []
+WEIGHT = "weights/best_model.pt"
 
-    for label_idx, class_name in enumerate(CLASS_NAMES):
+RESULT_DIR = "results"
+MIS_DIR = os.path.join(RESULT_DIR, "misclassified")
 
-        folder = os.path.join(
-            TEST_DIR,
-            class_name
-        )
+os.makedirs(RESULT_DIR, exist_ok=True)
+os.makedirs(MIS_DIR, exist_ok=True)
 
-        if not os.path.exists(folder):
-            continue
+# ===============================
+# Data
+# ===============================
 
-        for file in os.listdir(folder):
+test_loader, classes = get_dataloader(
+    TEST_DIR,
+    batch_size=16,
+    shuffle=False,
+    train=False
+)
 
-            if file.lower().endswith(
-                (
-                    ".jpg",
-                    ".jpeg",
-                    ".png",
-                )
-            ):
+# ===============================
+# Model
+# ===============================
 
-                image_paths.append(
+model = CLIPClassifier(
+    num_classes=len(classes),
+    freeze_backbone=False
+)
+
+model.load_state_dict(
+    torch.load(
+        WEIGHT,
+        map_location=DEVICE
+    )
+)
+
+model.to(DEVICE)
+model.eval()
+
+# ===============================
+# Evaluation
+# ===============================
+
+y_true = []
+y_pred = []
+
+with torch.no_grad():
+
+    for batch in test_loader:
+
+        images = batch["pixel_values"].to(DEVICE)
+        labels = batch["label"].to(DEVICE)
+
+        outputs = model(images)
+
+        pred = outputs.argmax(1)
+
+        y_true.extend(labels.cpu().numpy())
+        y_pred.extend(pred.cpu().numpy())
+
+        paths = batch["path"]
+
+        for i in range(len(paths)):
+
+            if pred[i].item() != labels[i].item():
+
+                filename = os.path.basename(paths[i])
+
+                shutil.copy(
+                    paths[i],
                     os.path.join(
-                        folder,
-                        file,
+                        MIS_DIR,
+                        f"{classes[labels[i]]}_pred_{classes[pred[i]]}_{filename}"
                     )
                 )
 
-                labels.append(label_idx)
+# ===============================
+# Metrics
+# ===============================
 
-    return image_paths, labels
+acc = accuracy_score(y_true, y_pred)
 
+print("=" * 60)
+print(f"Accuracy : {acc:.4f}")
+print("=" * 60)
 
-def evaluate():
+print(
+    classification_report(
+        y_true,
+        y_pred,
+        target_names=classes,
+        digits=4
+    )
+)
 
-    image_paths, labels = load_test_dataset()
+# ===============================
+# Confusion Matrix
+# ===============================
 
-    y_true = []
+cm = confusion_matrix(y_true, y_pred)
 
-    y_pred = []
+plt.figure(figsize=(8, 7))
 
-    for path, gt in tqdm(
-        zip(image_paths, labels),
-        total=len(image_paths),
-    ):
+plt.imshow(cm)
 
-        image = Image.open(path).convert("RGB")
+plt.xticks(
+    np.arange(len(classes)),
+    classes,
+    rotation=45
+)
 
-        result = model.predict(
-            image=image,
-            class_names=CLASS_NAMES,
+plt.yticks(
+    np.arange(len(classes)),
+    classes
+)
+
+plt.xlabel("Predicted")
+plt.ylabel("True")
+
+for i in range(len(classes)):
+    for j in range(len(classes)):
+        plt.text(
+            j,
+            i,
+            cm[i, j],
+            ha="center",
+            va="center"
         )
 
-        pred = CLASS_NAMES.index(
-            result["scene"]
-        )
+plt.tight_layout()
 
-        y_true.append(gt)
+plt.savefig(
+    os.path.join(
+        RESULT_DIR,
+        "confusion_matrix.png"
+    ),
+    dpi=300
+)
 
-        y_pred.append(pred)
+plt.close()
 
-    evaluate_metrics(
-        y_true,
-        y_pred,
-        CLASS_NAMES,
-    )
-
-    save_confusion_matrix(
-        y_true,
-        y_pred,
-        CLASS_NAMES,
-    )
-
-    save_misclassified(
-        image_paths,
-        y_true,
-        y_pred,
-        CLASS_NAMES,
-    )
-
-
-if __name__ == "__main__":
-    evaluate()
+print()
+print("Confusion Matrix 저장 완료")
+print(f"Misclassified : {len(os.listdir(MIS_DIR))}")

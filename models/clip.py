@@ -1,51 +1,44 @@
-# models/clip.py
-
 import torch
-import open_clip
-from PIL import Image
+import torch.nn as nn
+from transformers import CLIPVisionModelWithProjection
 
 
-class CLIPModel:
+class CLIPClassifier(nn.Module):
     def __init__(
         self,
-        model_name="ViT-B-32",
-        pretrained="laion2b_s34b_b79k",
-        device=None,
+        model_name="openai/clip-vit-base-patch32",
+        num_classes=6,
+        dropout=0.2,
+        freeze_backbone=False,
     ):
-        self.device = device or (
-            "cuda" if torch.cuda.is_available() else "cpu"
+        super().__init__()
+
+        # Pretrained CLIP Vision Encoder
+        self.backbone = CLIPVisionModelWithProjection.from_pretrained(
+            model_name
         )
 
-        self.model, _, self.preprocess = open_clip.create_model_and_transforms(
-            model_name=model_name,
-            pretrained=pretrained,
+        feature_dim = self.backbone.config.projection_dim
+
+        # Classification Head
+        self.classifier = nn.Sequential(
+            nn.Dropout(dropout),
+            nn.Linear(feature_dim, num_classes)
         )
 
-        self.tokenizer = open_clip.get_tokenizer(model_name)
+        # Backbone Freeze 여부
+        if freeze_backbone:
+            for param in self.backbone.parameters():
+                param.requires_grad = False
 
-        self.model.to(self.device)
-        self.model.eval()
+    def forward(self, pixel_values):
 
-    def predict(self, image, class_names):
-        image = self.preprocess(image).unsqueeze(0).to(self.device)        
-        
-        text = self.tokenizer(class_names).to(self.device)
+        outputs = self.backbone(
+            pixel_values=pixel_values
+        )
 
-        with torch.no_grad():
+        image_feature = outputs.image_embeds
 
-            image_features = self.model.encode_image(image)
-            text_features = self.model.encode_text(text)
+        logits = self.classifier(image_feature)
 
-            image_features /= image_features.norm(dim=-1, keepdim=True)
-            text_features /= text_features.norm(dim=-1, keepdim=True)
-
-            similarity = (
-                image_features @ text_features.T
-            ).softmax(dim=-1)
-
-        idx = similarity.argmax().item()
-
-        return {
-            "scene": class_names[idx],
-            "score": float(similarity[0][idx].item())
-        }
+        return logits
