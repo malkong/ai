@@ -10,8 +10,15 @@ from sklearn.metrics import (
     confusion_matrix
 )
 
-from model import CLIPClassifier
+from models import CLIPClassifier
 from dataset import get_dataloader
+
+# colab 환경에서 실행 시 아래 주석 해제
+# import sys
+
+# sys.path.append('/content/ai')
+# from models.clip import CLIPClassifier
+
 
 # ===============================
 # 설정
